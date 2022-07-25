@@ -2,8 +2,6 @@ package bluetooth
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"syscall"
 	"unsafe"
 
@@ -15,36 +13,11 @@ var _ Communicator = &bluetooth{}
 type bluetooth struct {
 	log    Log
 	Handle windows.Handle
-	Addr   string
+	// SocketAddr     *unix.SockaddrRFCOMM
+	Addr string
 }
 
-type SockaddrBth struct {
-	family         uint16
-	BtAddr         uint64
-	ServiceClassId windows.GUID
-	Port           uint32
-}
-
-func (sa *SockaddrBth) sockaddr() (unsafe.Pointer, int32, error) {
-	// if sa.Port < 0 || sa.Port > 31 {
-	// 	return nil, 0, windows.EINVAL
-	// }
-	sa.family = windows.AF_BTH
-	p := (*[2]byte)(unsafe.Pointer(&sa.Port))
-	p[0] = byte(sa.Port >> 8)
-	p[1] = byte(sa.Port)
-	fmt.Println(" --- SockaddrBth: ", unsafe.Sizeof(SockaddrBth{}))
-	fmt.Println(" --- family: ", unsafe.Sizeof(*&sa.family))
-	fmt.Println(" --- BtAddr: ", unsafe.Sizeof(*&sa.BtAddr))
-	fmt.Println(" --- ServiceClassId: ", unsafe.Sizeof(*&sa.ServiceClassId))
-	fmt.Println(" --- Port: ", unsafe.Sizeof(*&sa.Port))
-	fmt.Println(" --- SizeOf: ", unsafe.Sizeof(*sa))
-	fmt.Println(" --- SizeOf int32: ", int32(unsafe.Sizeof(*sa)))
-	upsa := unsafe.Pointer(sa)
-	return upsa, int32(unsafe.Sizeof(*sa)), nil
-}
-
-func Bluetooth(addr string, params Params) (Communicator, error) {
+func New(addr string, params Params) (Communicator, error) {
 	var d syscall.WSAData
 	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != nil {
@@ -59,8 +32,10 @@ func Bluetooth(addr string, params Params) (Communicator, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 54:81:2D:7F:CD:D2
 	s := SockaddrBth{
-		BtAddr: 0x54812D7FCDD2,
+		//BtAddr: str2ba(addr),
+		BtAddr: 0x54812d7fcdd2,
 		//ServiceClassId: g,
 		Port: 6,
 	}
@@ -70,6 +45,8 @@ func Bluetooth(addr string, params Params) (Communicator, error) {
 	params.Log.Print("unix socket linked with an RFCOMM")
 
 	return &bluetooth{
+		//FileDescriptor: fd,
+		//SocketAddr:     socketAddr,
 		log:    params.Log,
 		Handle: fd,
 		Addr:   addr,
@@ -77,18 +54,26 @@ func Bluetooth(addr string, params Params) (Communicator, error) {
 }
 
 func (b *bluetooth) Read(dataLen int) (int, []byte, error) {
+	var Length [500]byte
+	UitnZero_1 := uint32(0)
 
-	var data = make([]byte, dataLen)
-	n, err := windows.Read(b.Handle, data)
+	buf := windows.WSABuf{Len: uint32(500), Buf: &Length[0]}
+	recv := uint32(0)
+	err := windows.WSARecv(b.Handle, &buf, 1, &recv, &UitnZero_1, nil, nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	b.log.Print(fmt.Sprintf(">>>>>>>>>>>> protoComm.Read: %v", data[:n]))
-	return 12, data, nil
+	b.log.Print(fmt.Sprintf(">>>>>>>>>>>> protoComm.Read: %v", Length[:recv]))
+	var data = make([]byte, recv)
+	for i := 0; i < int(recv); i++ {
+		data[i] = Length[i]
+	}
+
+	return int(recv), data, nil
 }
 
 func (b *bluetooth) Write(d []byte) error {
-	b.log.Print(">>>>>>>>>>>> protoComm.Write: %v\n", d)
+	b.log.Print(fmt.Sprintf(">>>>>>>>>>>> protoComm.Write: %v\n", d))
 	buf := &windows.WSABuf{
 		Len: uint32(len(d)),
 	}
@@ -104,17 +89,6 @@ func (b bluetooth) Close() error {
 	return windows.Close(b.Handle)
 }
 
-// str2ba converts MAC address string representation to little-endian byte array
-func str2ba(addr string) [6]byte {
-	a := strings.Split(addr, ":")
-	var b [6]byte
-	for i, tmp := range a {
-		u, _ := strconv.ParseUint(tmp, 16, 8)
-		b[len(b)-1-i] = byte(u)
-	}
-	return b
-}
-
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 /// Temporary
@@ -122,15 +96,12 @@ func str2ba(addr string) [6]byte {
 // ---------------------------------------------------------------------------
 
 func Connect(fd windows.Handle, sa SockaddrBth) (err error) {
-	// ptr, n, err := sa.sockaddr()
-	// if err != nil {
-	// 	return err
-	// }
+	ptr, n, err := sa.sockaddr()
+	if err != nil {
+		return err
+	}
 
-	// 20 00 d2 cd 7f 2d 81 54 00 00 7f 21 96 00 00 00 54 00 00 00 81 00 00 00 2d 00 06 00 00 00
-	ptr := unsafe.Pointer(&[30]byte{0x20, 0x00, 0xd2, 0xcd, 0x7f, 0x2d, 0x81, 0x54, 0x00, 0x00, 0x7f, 0x21, 0x96, 0x00, 0x00, 0x00, 0x54,
-		0x00, 0x00, 0x00, 0x81, 0x00, 0x00, 0x00, 0x2d, 0x00, 0x06, 0x00, 0x00, 0x00})
-	return connectOg(fd, ptr, 30)
+	return connectOg(fd, ptr, n)
 }
 
 const socket_error = uintptr(^uint32(0))
@@ -151,6 +122,8 @@ func connectOg(s windows.Handle, name unsafe.Pointer, namelen int32) (err error)
 
 const (
 	errnoERROR_IO_PENDING = 997
+
+	InvalidHandle = ^windows.Handle(0)
 )
 
 var (
@@ -166,4 +139,30 @@ func errnoErr(e syscall.Errno) error {
 		return errERROR_IO_PENDING
 	}
 	return e
+}
+
+type RawSockaddrBth struct {
+	AddressFamily  [2]byte
+	btAddr         [8]byte
+	ServiceClassId [16]byte
+	Port           [4]byte
+}
+
+type SockaddrBth struct {
+	BtAddr         uint64
+	ServiceClassId windows.GUID
+	Port           uint32
+
+	raw RawSockaddrBth
+}
+
+func (sa *SockaddrBth) sockaddr() (unsafe.Pointer, int32, error) {
+	family := windows.AF_BTH
+	sa.raw = RawSockaddrBth{
+		AddressFamily:  *(*[2]byte)(unsafe.Pointer(&family)),
+		btAddr:         *(*[8]byte)(unsafe.Pointer(&sa.BtAddr)),
+		Port:           *(*[4]byte)(unsafe.Pointer(&sa.Port)),
+		ServiceClassId: *(*[16]byte)(unsafe.Pointer(&sa.ServiceClassId)),
+	}
+	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }

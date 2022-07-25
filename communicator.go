@@ -5,12 +5,16 @@ import (
 	"strings"
 )
 
+func Get(addr string, params Params) (Communicator, error) {
+	return New(addr, params)
+}
+
 type Params struct {
 	Log Log
 }
 
-// stringToByteArray converts MAC address string representation to little-endian byte array
-func stringToByteArray(addr string) [6]byte {
+// addressToByteArray converts MAC address string representation to little-endian byte array
+func addressToByteArray(addr string) [6]byte {
 	a := strings.Split(addr, ":")
 	var b [6]byte
 	for i, tmp := range a {
