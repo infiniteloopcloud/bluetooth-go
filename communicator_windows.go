@@ -13,8 +13,7 @@ var _ Communicator = &bluetooth{}
 type bluetooth struct {
 	log    Log
 	Handle windows.Handle
-	// SocketAddr     *unix.SockaddrRFCOMM
-	Addr string
+	Addr   string
 }
 
 func New(addr string, params Params) (Communicator, error) {
@@ -34,10 +33,8 @@ func New(addr string, params Params) (Communicator, error) {
 	}
 	// 54:81:2D:7F:CD:D2
 	s := SockaddrBth{
-		//BtAddr: str2ba(addr),
 		BtAddr: 0x54812d7fcdd2,
-		//ServiceClassId: g,
-		Port: 6,
+		Port:   6,
 	}
 	if err := Connect(fd, s); err != nil {
 		return nil, err
@@ -113,7 +110,7 @@ var (
 )
 
 func connectOg(s windows.Handle, name unsafe.Pointer, namelen int32) (err error) {
-	r1, _, e1 := syscall.Syscall(procconnect.Addr(), 3, uintptr(s), uintptr(name), uintptr(namelen))
+	r1, _, e1 := syscall.SyscallN(procconnect.Addr(), 3, uintptr(s), uintptr(name), uintptr(namelen))
 	if r1 == socket_error {
 		err = errnoErr(e1)
 	}
@@ -122,8 +119,6 @@ func connectOg(s windows.Handle, name unsafe.Pointer, namelen int32) (err error)
 
 const (
 	errnoERROR_IO_PENDING = 997
-
-	InvalidHandle = ^windows.Handle(0)
 )
 
 var (

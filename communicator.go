@@ -23,3 +23,7 @@ func addressToByteArray(addr string) [6]byte {
 	}
 	return b
 }
+
+func addressToUint64(addr string) uint64 {
+	return 0
+}
