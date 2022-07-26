@@ -16,7 +16,7 @@ type bluetooth struct {
 	Addr           string
 }
 
-func New(params Params) (Communicator, error) {
+func Connect(params Params) (Communicator, error) {
 	fd, err := unix.Socket(unix.AF_BLUETOOTH, unix.SOCK_STREAM, unix.BTPROTO_RFCOMM)
 	if err != nil {
 		return nil, err
@@ -46,13 +46,9 @@ func (b *bluetooth) Read(dataLen int) (int, []byte, error) {
 	return n, data, nil
 }
 
-func (b *bluetooth) Write(d []byte) error {
+func (b *bluetooth) Write(d []byte) (int, error) {
 	b.log.Print(fmt.Sprintf(">>>>>>>>>>>> protoComm.Write: %v", d))
-	_, err := unix.Write(b.FileDescriptor, d)
-	if err != nil {
-		return err
-	}
-	return nil
+	return unix.Write(b.FileDescriptor, d)
 }
 
 func (b bluetooth) Close() error {

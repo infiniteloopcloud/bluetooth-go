@@ -16,7 +16,7 @@ type bluetooth struct {
 	Addr   string
 }
 
-func New(params Params) (Communicator, error) {
+func Connect(params Params) (Communicator, error) {
 	var d syscall.WSAData
 	err := syscall.WSAStartup(uint32(0x202), &d)
 	if err != nil {
@@ -36,7 +36,7 @@ func New(params Params) (Communicator, error) {
 		BtAddr: addressUint64,
 		Port:   6,
 	}
-	if err := Connect(fd, s); err != nil {
+	if err := connect(fd, s); err != nil {
 		return nil, err
 	}
 	params.Log.Print("unix socket linked with an RFCOMM")
@@ -63,7 +63,7 @@ func (b *bluetooth) Read(dataLen int) (int, []byte, error) {
 	return int(receiver), data, nil
 }
 
-func (b *bluetooth) Write(d []byte) error {
+func (b *bluetooth) Write(d []byte) (int, error) {
 	b.log.Print(fmt.Sprintf(">>>>>>>>>>>> protoComm.Write: %v\n", d))
 	buf := &windows.WSABuf{
 		Len: uint32(len(d)),
@@ -73,7 +73,7 @@ func (b *bluetooth) Write(d []byte) error {
 	}
 	var numOfBytes uint32
 	err := windows.WSASend(b.Handle, buf, 1, &numOfBytes, 0, nil, nil)
-	return err
+	return int(numOfBytes), err
 }
 
 func (b bluetooth) Close() error {
@@ -86,7 +86,7 @@ func (b bluetooth) Close() error {
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
-func Connect(fd windows.Handle, sa SockaddrBth) (err error) {
+func connect(fd windows.Handle, sa SockaddrBth) (err error) {
 	ptr, n, err := sa.sockaddr()
 	if err != nil {
 		return err

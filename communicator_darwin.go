@@ -1,5 +1,5 @@
 package bluetooth
 
-func New(params Params) (Communicator, error) {
+func Connect(params Params) (Communicator, error) {
 	panic("not implemented")
 }

@@ -8,7 +8,7 @@ type Log interface {
 
 type Communicator interface {
 	Read(dataLen int) (int, []byte, error)
-	Write(d []byte) error
+	io.Writer
 	io.Closer
 }
 
