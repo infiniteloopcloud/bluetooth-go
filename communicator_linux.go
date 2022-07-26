@@ -16,13 +16,13 @@ type bluetooth struct {
 	Addr           string
 }
 
-func New(addr string, params Params) (Communicator, error) {
+func New(params Params) (Communicator, error) {
 	fd, err := unix.Socket(unix.AF_BLUETOOTH, unix.SOCK_STREAM, unix.BTPROTO_RFCOMM)
 	if err != nil {
 		return nil, err
 	}
 	params.Log.Print("unix socket returned a file descriptor: ", fd)
-	socketAddr := &unix.SockaddrRFCOMM{Addr: addressToByteArray(addr), Channel: 6}
+	socketAddr := &unix.SockaddrRFCOMM{Addr: addressToByteArray(params.Address), Channel: 6}
 	if err := unix.Connect(fd, socketAddr); err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func New(addr string, params Params) (Communicator, error) {
 		log:            params.Log,
 		FileDescriptor: fd,
 		SocketAddr:     socketAddr,
-		Addr:           addr,
+		Addr:           params.Address,
 	}, nil
 }
 

@@ -5,12 +5,9 @@ import (
 	"strings"
 )
 
-func Get(addr string, params Params) (Communicator, error) {
-	return New(addr, params)
-}
-
 type Params struct {
-	Log Log
+	Address string
+	Log     Log
 }
 
 // addressToByteArray converts MAC address string representation to little-endian byte array

@@ -16,7 +16,7 @@ type bluetooth struct {
 	Addr   string
 }
 
-func New(addr string, params Params) (Communicator, error) {
+func New(params Params) (Communicator, error) {
 	var d syscall.WSAData
 	err := syscall.WSAStartup(uint32(0x202), &d)
 	if err != nil {
@@ -28,7 +28,7 @@ func New(addr string, params Params) (Communicator, error) {
 		return nil, err
 	}
 
-	addressUint64, err := addressToUint64(addr)
+	addressUint64, err := addressToUint64(params.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -44,27 +44,23 @@ func New(addr string, params Params) (Communicator, error) {
 	return &bluetooth{
 		log:    params.Log,
 		Handle: fd,
-		Addr:   addr,
+		Addr:   params.Address,
 	}, nil
 }
 
 func (b *bluetooth) Read(dataLen int) (int, []byte, error) {
-	var Length [500]byte
+	var data = make([]byte, dataLen)
 	flags := uint32(0)
 
-	buf := windows.WSABuf{Len: uint32(500), Buf: &Length[0]}
-	recv := uint32(0)
-	err := windows.WSARecv(b.Handle, &buf, 1, &recv, &flags, nil, nil)
+	buf := windows.WSABuf{Len: uint32(dataLen), Buf: &data[0]}
+	receiver := uint32(0)
+	err := windows.WSARecv(b.Handle, &buf, 1, &receiver, &flags, nil, nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	b.log.Print(fmt.Sprintf(">>>>>>>>>>>> protoComm.Read: %v", Length[:recv]))
-	var data = make([]byte, recv)
-	for i := 0; i < int(recv); i++ {
-		data[i] = Length[i]
-	}
+	b.log.Print(fmt.Sprintf(">>>>>>>>>>>> protoComm.Read: %v", data[:receiver]))
 
-	return int(recv), data, nil
+	return int(receiver), data, nil
 }
 
 func (b *bluetooth) Write(d []byte) error {
