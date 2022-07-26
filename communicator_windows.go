@@ -18,9 +18,9 @@ type bluetooth struct {
 
 func New(addr string, params Params) (Communicator, error) {
 	var d syscall.WSAData
-	e := syscall.WSAStartup(uint32(0x202), &d)
-	if e != nil {
-		return nil, e
+	err := syscall.WSAStartup(uint32(0x202), &d)
+	if err != nil {
+		return nil, err
 	}
 
 	fd, err := windows.Socket(windows.AF_BTH, windows.SOCK_STREAM, windows.BTHPROTO_RFCOMM)
@@ -28,12 +28,12 @@ func New(addr string, params Params) (Communicator, error) {
 		return nil, err
 	}
 
+	addressUint64, err := addressToUint64(addr)
 	if err != nil {
 		return nil, err
 	}
-	// 54:81:2D:7F:CD:D2
 	s := SockaddrBth{
-		BtAddr: 0x54812d7fcdd2,
+		BtAddr: addressUint64,
 		Port:   6,
 	}
 	if err := Connect(fd, s); err != nil {
@@ -42,8 +42,6 @@ func New(addr string, params Params) (Communicator, error) {
 	params.Log.Print("unix socket linked with an RFCOMM")
 
 	return &bluetooth{
-		//FileDescriptor: fd,
-		//SocketAddr:     socketAddr,
 		log:    params.Log,
 		Handle: fd,
 		Addr:   addr,
@@ -52,11 +50,11 @@ func New(addr string, params Params) (Communicator, error) {
 
 func (b *bluetooth) Read(dataLen int) (int, []byte, error) {
 	var Length [500]byte
-	UitnZero_1 := uint32(0)
+	flags := uint32(0)
 
 	buf := windows.WSABuf{Len: uint32(500), Buf: &Length[0]}
 	recv := uint32(0)
-	err := windows.WSARecv(b.Handle, &buf, 1, &recv, &UitnZero_1, nil, nil)
+	err := windows.WSARecv(b.Handle, &buf, 1, &recv, &flags, nil, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -101,17 +99,10 @@ func Connect(fd windows.Handle, sa SockaddrBth) (err error) {
 	return connectOg(fd, ptr, n)
 }
 
-const socket_error = uintptr(^uint32(0))
-
-var (
-	modws2_32   = windows.NewLazySystemDLL("ws2_32.dll")
-	procconnect = modws2_32.NewProc("connect")
-	procsend    = modws2_32.NewProc("send")
-)
-
 func connectOg(s windows.Handle, name unsafe.Pointer, namelen int32) (err error) {
-	r1, _, e1 := syscall.SyscallN(procconnect.Addr(), 3, uintptr(s), uintptr(name), uintptr(namelen))
-	if r1 == socket_error {
+	procConnection := windows.NewLazySystemDLL("ws2_32.dll").NewProc("connect")
+	r1, _, e1 := syscall.SyscallN(procConnection.Addr(), 3, uintptr(s), uintptr(name), uintptr(namelen))
+	if r1 == uintptr(^uint32(0)) {
 		err = errnoErr(e1)
 	}
 	return

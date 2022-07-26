@@ -7,7 +7,6 @@ import (
 )
 
 // NOTE: https://github.com/golang/go/issues/52325
-
 var _ Communicator = &bluetooth{}
 
 type bluetooth struct {

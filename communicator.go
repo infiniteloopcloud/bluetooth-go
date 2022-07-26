@@ -24,6 +24,18 @@ func addressToByteArray(addr string) [6]byte {
 	return b
 }
 
-func addressToUint64(addr string) uint64 {
-	return 0
+// addressToUint64 converts MAC address string to uint64
+func addressToUint64(address string) (uint64, error) {
+	addressParts := strings.Split(address, ":")
+	addressPartsLength := len(addressParts)
+	var result uint64
+	for i, tmp := range addressParts {
+		u, err := strconv.ParseUint(tmp, 16, 8)
+		if err != nil {
+			return 0, err
+		}
+		push := 8 * (addressPartsLength - 1 - i)
+		result += u << push
+	}
+	return result, nil
 }
