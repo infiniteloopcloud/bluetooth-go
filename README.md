@@ -6,6 +6,7 @@ This is a raw bluetooth library which connects to a MAC address by using syscall
 
 - Implements a simple Read/Write interface.
 - Same behavior on Linux and Windows (later Darwin).
+- Zero-dependency (expect Go's x/sys)
 
 ### Usage
 
