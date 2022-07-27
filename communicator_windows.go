@@ -97,7 +97,7 @@ func connect(fd windows.Handle, sa SockaddrBth) (err error) {
 
 func connectOg(s windows.Handle, name unsafe.Pointer, namelen int32) (err error) {
 	procConnection := windows.NewLazySystemDLL("ws2_32.dll").NewProc("connect")
-	r1, _, e1 := syscall.SyscallN(procConnection.Addr(), 3, uintptr(s), uintptr(name), uintptr(namelen))
+	r1, _, e1 := syscall.SyscallN(procConnection.Addr(), uintptr(s), uintptr(name), uintptr(namelen))
 	if r1 == uintptr(^uint32(0)) {
 		err = errnoErr(e1)
 	}
