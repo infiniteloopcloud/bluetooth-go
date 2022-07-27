@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -8,6 +9,26 @@ import (
 type Params struct {
 	Address string
 	Log     Log
+}
+
+var _ Communicator = Printer{}
+
+// Printer is a mock implementation of Communicator
+type Printer struct {
+	log Log
+}
+
+func (p Printer) Read(dataLen int) (int, []byte, error) {
+	return dataLen, nil, nil
+}
+
+func (p Printer) Write(d []byte) (int, error) {
+	p.log.Print(fmt.Sprintf("PRINTER %d >>> %v", len(d), d))
+	return len(d), nil
+}
+
+func (p Printer) Close() error {
+	return nil
 }
 
 // addressToByteArray converts MAC address string representation to little-endian byte array
