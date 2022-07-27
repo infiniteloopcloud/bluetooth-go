@@ -18,5 +18,5 @@ type Device struct {
 }
 
 type Scanner interface {
-	Scan() []Device
+	Scan() ([]Device, error)
 }

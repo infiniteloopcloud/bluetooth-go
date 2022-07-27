@@ -7,6 +7,17 @@ This is a raw bluetooth library which connects to a MAC address by using syscall
 - Implements a simple Read/Write interface.
 - Same behavior on Linux and Windows (later Darwin).
 - Zero-dependency (expect Go's x/sys)
+- Built-in scanner for devices
+  - Darwin: using the `blueutil`
+  - Linux: using the `hcitool`
+  - Windows: not implemented yet
+
+### Roadmap
+
+- Add Windows device scan
+- Rewrite Linux scan not to use `hcitool`
+- Rewrite Darwin scan not to use `blueutil`
+- Add Darwin supports to Communicator
 
 ### Usage
 
@@ -15,6 +26,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/infiniteloopcloud/bluetooth-go"
 )
 
@@ -55,6 +67,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/infiniteloopcloud/bluetooth-go"
 )
 
@@ -74,5 +87,25 @@ func main() {
 		// handle err
 	}
 	//....
+}
+```
+
+### Scanner
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/infiniteloopcloud/bluetooth-go"
+)
+
+func main() {
+	devices, err := bluetooth.NewScanner().Scan()
+	if err != nil {
+		// handle err
+	}
+	fmt.Println(devices)
 }
 ```
