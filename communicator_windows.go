@@ -2,10 +2,8 @@ package bluetooth
 
 import (
 	"fmt"
-	"syscall"
-	"unsafe"
-
 	"golang.org/x/sys/windows"
+	"syscall"
 )
 
 var _ Communicator = &bluetooth{}
@@ -32,11 +30,11 @@ func Connect(params Params) (Communicator, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := SockaddrBth{
+	s := &windows.SockaddrBth{
 		BtAddr: addressUint64,
 		Port:   6,
 	}
-	if err := connect(fd, s); err != nil {
+	if err := windows.Connect(fd, s); err != nil {
 		return nil, err
 	}
 	params.Log.Print("unix socket linked with an RFCOMM")
@@ -78,73 +76,4 @@ func (b *bluetooth) Write(d []byte) (int, error) {
 
 func (b bluetooth) Close() error {
 	return windows.Close(b.Handle)
-}
-
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-/// Temporary
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-
-func connect(fd windows.Handle, sa SockaddrBth) (err error) {
-	ptr, n, err := sa.sockaddr()
-	if err != nil {
-		return err
-	}
-
-	return connectOg(fd, ptr, n)
-}
-
-func connectOg(s windows.Handle, name unsafe.Pointer, namelen int32) (err error) {
-	procConnection := windows.NewLazySystemDLL("ws2_32.dll").NewProc("connect")
-	r1, _, e1 := syscall.SyscallN(procConnection.Addr(), uintptr(s), uintptr(name), uintptr(namelen))
-	if r1 == uintptr(^uint32(0)) {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-const (
-	errnoERROR_IO_PENDING = 997
-)
-
-var (
-	errERROR_IO_PENDING error = syscall.Errno(errnoERROR_IO_PENDING)
-	errERROR_EINVAL     error = syscall.EINVAL
-)
-
-func errnoErr(e syscall.Errno) error {
-	switch e {
-	case 0:
-		return errERROR_EINVAL
-	case errnoERROR_IO_PENDING:
-		return errERROR_IO_PENDING
-	}
-	return e
-}
-
-type RawSockaddrBth struct {
-	AddressFamily  [2]byte
-	btAddr         [8]byte
-	ServiceClassId [16]byte
-	Port           [4]byte
-}
-
-type SockaddrBth struct {
-	BtAddr         uint64
-	ServiceClassId windows.GUID
-	Port           uint32
-
-	raw RawSockaddrBth
-}
-
-func (sa *SockaddrBth) sockaddr() (unsafe.Pointer, int32, error) {
-	family := windows.AF_BTH
-	sa.raw = RawSockaddrBth{
-		AddressFamily:  *(*[2]byte)(unsafe.Pointer(&family)),
-		btAddr:         *(*[8]byte)(unsafe.Pointer(&sa.BtAddr)),
-		Port:           *(*[4]byte)(unsafe.Pointer(&sa.Port)),
-		ServiceClassId: *(*[16]byte)(unsafe.Pointer(&sa.ServiceClassId)),
-	}
-	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }
