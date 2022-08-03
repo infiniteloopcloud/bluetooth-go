@@ -2,8 +2,9 @@ package bluetooth
 
 import (
 	"fmt"
-	"golang.org/x/sys/windows"
 	"syscall"
+
+	"golang.org/x/sys/windows"
 )
 
 var _ Communicator = &bluetooth{}
