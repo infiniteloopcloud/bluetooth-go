@@ -28,9 +28,16 @@ import (
 )
 
 func CreateCoreBluetooth(verbose bool) coreBluetooth {
-	a := C.createAdapter(C.BOOL(verbose))
-	return coreBluetooth{
-		ptr: unsafe.Pointer(a),
+	if verbose {
+		a := C.createAdapter(C.BOOL(True))
+		return coreBluetooth{
+			ptr: unsafe.Pointer(a),
+		}
+	} else {
+		a := C.createAdapter(C.BOOL(False))
+		return coreBluetooth{
+			ptr: unsafe.Pointer(a),
+		}
 	}
 }
 
