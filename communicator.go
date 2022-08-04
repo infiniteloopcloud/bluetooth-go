@@ -7,8 +7,9 @@ import (
 )
 
 type Params struct {
-	Address string
-	Log     Log
+	Address           string
+	CharacteristicIDs []string
+	Log               Log
 }
 
 var _ Communicator = Printer{}
