@@ -12,7 +12,7 @@ import (
 )
 
 func NewScanner() Scanner {
-	panic("not implemented")
+	return scanner{}
 }
 
 var _ Scanner = scanner{}
