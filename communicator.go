@@ -10,6 +10,7 @@ type Params struct {
 	Address           string
 	CharacteristicIDs []string
 	Log               Log
+	Verbose           bool
 }
 
 var _ Communicator = Printer{}

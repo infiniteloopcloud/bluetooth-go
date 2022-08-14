@@ -121,7 +121,7 @@ func (cb *coreBluetooth) Close() error {
 var _ Communicator = &coreBluetooth{}
 
 func Connect(params Params) (Communicator, error) {
-	bluetooth := CreateCoreBluetooth(false)
+	bluetooth := CreateCoreBluetooth(params.Verbose)
 	bluetooth.SetPeripheralID(params.Address)
 	if params.CharacteristicIDs != nil {
 		bluetooth.SetCharacteristicIDs(params.CharacteristicIDs)
