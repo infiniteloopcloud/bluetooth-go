@@ -6,6 +6,8 @@
     Boolean _running;
     Boolean _connecting;
     Boolean _readDone;
+    Boolean _writeDone;
+    NSString *_lastRead;
     CBCentralManager *manager;
     CBPeripheralManager *peripheralManager;
     CBPeripheral *_currentPeripheral;
@@ -43,8 +45,18 @@
     for (CBCharacteristic *c in _writableCharacteristics.allValues) {
         [self verbose:@"Sending message to: [%@]", [c.UUID UUIDString]];
         NSData *d = [[NSData alloc] initWithBytes:msgRaw length:[msg length]];
-        [_currentPeripheral writeValue:d forCharacteristic:c type:CBCharacteristicWriteWithoutResponse];
-
+        if ((c.properties & CBCharacteristicPropertyWriteWithoutResponse) != 0) {
+            [self verbose:@"CBCharacteristicPropertyWriteWithoutResponse"];
+            [_currentPeripheral writeValue:d forCharacteristic:c type:CBCharacteristicWriteWithoutResponse];
+        } else
+            if ((c.properties & CBCharacteristicPropertyWrite) != 0) {
+            [self verbose:@"CBCharacteristicPropertyWrite"];
+            _writeDone = false;
+            _readDone = false;
+            [_currentPeripheral writeValue:d forCharacteristic:c type:CBCharacteristicWriteWithResponse];
+            [self waitUntilWriteDone];
+            [self waitUntilReadDone];
+        }
     }
 }
 
@@ -58,8 +70,9 @@
     }
     NSMutableString *result = [[NSMutableString alloc] init];
     for (CBCharacteristic *c in _readableCharacteristics.allValues) {
+        [self verbose:@"CBCharacteristicPropertyRead"];
         if (c.value && c.value.length != 0) {
-            [result appendString:[[NSString alloc] initWithData:c.value encoding:NSASCIIStringEncoding]];
+            [result appendString:[[NSString alloc] initWithData:c.value encoding:NSUTF8StringEncoding]];
             [result appendString:@"\n"];
         }
     }
@@ -76,8 +89,12 @@ didDiscoverCharacteristicsForService:(CBService *)service
             if (!_characteristicIDs) {
                 [self info:@"Characteristic id match: %@", [c.UUID UUIDString]];
             }
-            [_currentPeripheral setNotifyValue:true forCharacteristic:c];
-            if ((c.properties & CBCharacteristicPropertyWriteWithoutResponse) != 0) {
+            [self printProperties:c.properties ID:[c.UUID UUIDString]];
+            if ((c.properties & CBCharacteristicPropertyNotify) != 0) {
+                [self verbose:@"Characteristic[%@] setting notify", c.UUID];
+                [_currentPeripheral setNotifyValue:true forCharacteristic:c];
+            }
+            if (((c.properties & CBCharacteristicPropertyWriteWithoutResponse) != 0) || ((c.properties & CBCharacteristicPropertyWrite) != 0)) {
                 [self verbose:@"Characteristic[%@] storing writable", c.UUID];
                 [_writableCharacteristics setValue:c forKey:[c.UUID UUIDString]];
             }
@@ -97,13 +114,67 @@ didDiscoverCharacteristicsForService:(CBService *)service
     }
 }
 
+/*
+ CBCharacteristicPropertyBroadcast                                                = 0x01,
+ CBCharacteristicPropertyRead                                                    = 0x02,
+ CBCharacteristicPropertyWriteWithoutResponse                                    = 0x04,
+ CBCharacteristicPropertyWrite                                                    = 0x08,
+ CBCharacteristicPropertyNotify                                                    = 0x10,
+ CBCharacteristicPropertyIndicate                                                = 0x20,
+ CBCharacteristicPropertyAuthenticatedSignedWrites                                = 0x40,
+ CBCharacteristicPropertyExtendedProperties                                        = 0x80,
+ CBCharacteristicPropertyNotifyEncryptionRequired NS_ENUM_AVAILABLE(10_9, 6_0)    = 0x100,
+ CBCharacteristicPropertyIndicateEncryptionRequired NS_ENUM_AVAILABLE(10_9, 6_0)    = 0x200
+ */
+
+- (void) printProperties:(CBCharacteristicProperties) props ID:(NSString *) uuid {
+    if ((props & CBCharacteristicPropertyBroadcast) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyBroadcast", uuid);
+    }
+    if ((props & CBCharacteristicPropertyRead) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyRead", uuid);
+    }
+    if ((props & CBCharacteristicPropertyWriteWithoutResponse) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyWriteWithoutResponse", uuid);
+    }
+    if ((props & CBCharacteristicPropertyWrite) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyWrite", uuid);
+    }
+    if ((props & CBCharacteristicPropertyNotify) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyNotify", uuid);
+    }
+    if ((props & CBCharacteristicPropertyIndicate) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyIndicate", uuid);
+    }
+    if ((props & CBCharacteristicPropertyAuthenticatedSignedWrites) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyAuthenticatedSignedWrites", uuid);
+    }
+    if ((props & CBCharacteristicPropertyExtendedProperties) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyExtendedProperties", uuid);
+    }
+    if ((props & CBCharacteristicPropertyNotifyEncryptionRequired) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyNotifyEncryptionRequired", uuid);
+    }
+    if ((props & CBCharacteristicPropertyIndicateEncryptionRequired) != 0) {
+        NSLog(@"%@ CBCharacteristicPropertyIndicateEncryptionRequired", uuid);
+    }
+}
+
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error {
-    [self verbose:@"UpdateValueForCharacteristic done: %@, %@, %@; ERR: %@", peripheral.identifier, [characteristic.UUID UUIDString], characteristic.value, error];
+    [self verbose:@"UpdateValueForCharacteristic done: %@, %@, %@; ERR: %@", peripheral.identifier, [characteristic.UUID UUIDString], [[NSString alloc] initWithData:characteristic.value encoding:NSUTF8StringEncoding], error];
+    if (characteristic.value) {
+        _lastRead = [NSString stringWithUTF8String:[characteristic.value bytes]];
+    }
     _readDone = true;
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral didWriteValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error {
     [self verbose:@"WriteValueForCharacteristic done: %@, %@; ERR: %@", peripheral.identifier, [characteristic.UUID UUIDString], error];
+    if (error) {
+        [self setError:error];
+        _readDone = true;
+    }
+    _writeDone = true;
 }
 
 - (void)centralManager:(CBCentralManager *)central
@@ -121,6 +192,7 @@ didDiscoverCharacteristicsForService:(CBService *)service
 
 - (void)centralManager:(CBCentralManager *)central didFailToConnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error {
     [self info:@"Peripheral[%@] connection failed: %@", peripheral.identifier, error];
+    [self connect];
     [self setError:error];
 }
 
@@ -194,15 +266,31 @@ didDiscoverCharacteristicsForService:(CBService *)service
     [self info:@"%@", string];
 }
 
-- (void)connect {
+- (BOOL)connect {
     NSRunLoop *runLoop = NSRunLoop.currentRunLoop;
     NSDate *distantFuture = NSDate.distantFuture;
     while([self running] && [runLoop runMode:NSDefaultRunLoopMode beforeDate:distantFuture]){
         if (self.connected) {
             [self info:@"Bluetooth successfully connected"];
-            break;
+            return TRUE;
+        }
+        if (self.error) {
+            [self info:@"Bluetooth connection failed"];
+            return FALSE;
         }
     }
+    return FALSE;
+}
+
+- (void)disconnect {
+    [manager cancelPeripheralConnection:self.currentPeripheral];
+}
+
+- (char *)lastRead {
+    if (_lastRead) {
+        return [_lastRead UTF8String];
+    }
+    return nil;
 }
 
 - (void)waitUntilReadDone {
@@ -210,7 +298,18 @@ didDiscoverCharacteristicsForService:(CBService *)service
     NSDate *distantFuture = NSDate.distantFuture;
     while([runLoop runMode:NSDefaultRunLoopMode beforeDate:distantFuture]){
         if (_readDone) {
-            [self verbose:@"Reading process done"];
+            [self verbose:@"Read done"];
+            break;
+        }
+    }
+}
+
+- (void)waitUntilWriteDone {
+    NSRunLoop *runLoop = NSRunLoop.currentRunLoop;
+    NSDate *distantFuture = NSDate.distantFuture;
+    while([runLoop runMode:NSDefaultRunLoopMode beforeDate:distantFuture]){
+        if (_writeDone) {
+            [self verbose:@"Write done"];
             break;
         }
     }
@@ -222,21 +321,24 @@ didDiscoverCharacteristicsForService:(CBService *)service
     }
     va_list args;
     va_start(args, msg);
-    [self log:msg withParameters:args];
+    NSMutableString *mutMsg = [[NSMutableString alloc] initWithUTF8String:"INFO::"];
+    [mutMsg appendString:msg];
+    [self log:mutMsg withParameters:args];
     va_end(args);
 }
 
 - (void) info:(NSString *) msg, ... {
     va_list args;
     va_start(args, msg);
-    [self log:msg withParameters:args];
+    NSMutableString *mutMsg = [[NSMutableString alloc] initWithUTF8String:"INFO::"];
+    [mutMsg appendString:msg];
+    [self log:mutMsg withParameters:args];
     va_end(args);
 }
 
 - (void) log:(NSString *) msg withParameters:(va_list)valist  {
     NSLogv(msg, valist);
 }
-
 
 @end
 
@@ -257,8 +359,12 @@ void setCharacteristicIDs(void* delegate, char **ids, int lenIDs) {
     [(CustomCBCentralManagerDelegate*)CFBridgingRelease(delegate) setCharacteristicIDs:idArray];
 }
 
-void _connect(void* delegate) {
-    [(CustomCBCentralManagerDelegate*)CFBridgingRelease(delegate) connect];
+BOOL _connect(void* delegate) {
+    return [(CustomCBCentralManagerDelegate*)CFBridgingRelease(delegate) connect];
+}
+
+void _disconnect(void* delegate) {
+    [(CustomCBCentralManagerDelegate*)CFBridgingRelease(delegate) disconnect];
 }
 
 const char* getPeripheralID(void* delegate) {
@@ -279,4 +385,8 @@ void sendMessage(void* delegate, char *msg) {
 
 char* readMessage(void* delegate) {
     return [(CustomCBCentralManagerDelegate*)CFBridgingRelease(delegate) readMessage];
+}
+
+char* lastRead(void* delegate) {
+    return [(CustomCBCentralManagerDelegate*)CFBridgingRelease(delegate) lastRead];
 }

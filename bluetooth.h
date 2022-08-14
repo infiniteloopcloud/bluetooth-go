@@ -14,9 +14,10 @@
 @property (strong) NSError *error;
 
 - (id) initWithVerbose:(Boolean) verbose;
-- (void) connect;
+- (BOOL) connect;
 - (void)sendMessage:(char *) msgRaw;
 - (char *)readMessage;
+- (char *)lastRead;
 
 @end
 
@@ -24,9 +25,11 @@
 CustomCBCentralManagerDelegate* createAdapter(BOOL verbose);
 void setPeripheralID(void* delegate, char *id);
 void setCharacteristicIDs(void* delegate, char **ids, int lenIDs);
-void _connect(void* delegate);
+BOOL _connect(void* delegate);
+void _disconnect(void* delegate);
 const char* getPeripheralID(void* delegate);
 bool running(void* delegate);
 bool connected(void* delegate);
 void sendMessage(void* delegate, char *msg);
 char* readMessage(void* delegate);
+char* lastRead(void* delegate);
