@@ -19,12 +19,22 @@ type bluetooth struct {
 func Connect(params Params) (Communicator, error) {
 	fd, err := unix.Socket(unix.AF_BLUETOOTH, unix.SOCK_STREAM, unix.BTPROTO_RFCOMM)
 	if err != nil {
-		return nil, err
+		return &bluetooth{
+			log:            params.Log,
+			FileDescriptor: fd,
+			SocketAddr:     socketAddr,
+			Addr:           params.Address,
+		}, err
 	}
 	params.Log.Print("unix socket returned a file descriptor: ", fd)
 	socketAddr := &unix.SockaddrRFCOMM{Addr: addressToByteArray(params.Address), Channel: 6}
 	if err := unix.Connect(fd, socketAddr); err != nil {
-		return nil, err
+		return &bluetooth{
+			log:            params.Log,
+			FileDescriptor: fd,
+			SocketAddr:     socketAddr,
+			Addr:           params.Address,
+		}, err
 	}
 	params.Log.Print("unix socket linked with an RFCOMM")
 

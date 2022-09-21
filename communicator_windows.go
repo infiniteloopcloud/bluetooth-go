@@ -24,19 +24,31 @@ func Connect(params Params) (Communicator, error) {
 
 	fd, err := windows.Socket(windows.AF_BTH, windows.SOCK_STREAM, windows.BTHPROTO_RFCOMM)
 	if err != nil {
-		return nil, err
+		return &bluetooth{
+			log:    params.Log,
+			Handle: fd,
+			Addr:   params.Address,
+		}, err
 	}
 
 	addressUint64, err := addressToUint64(params.Address)
 	if err != nil {
-		return nil, err
+		return &bluetooth{
+			log:    params.Log,
+			Handle: fd,
+			Addr:   params.Address,
+		}, err
 	}
 	s := &windows.SockaddrBth{
 		BtAddr: addressUint64,
 		Port:   6,
 	}
 	if err := windows.Connect(fd, s); err != nil {
-		return nil, err
+		return &bluetooth{
+			log:    params.Log,
+			Handle: fd,
+			Addr:   params.Address,
+		}, err
 	}
 	params.Log.Print("unix socket linked with an RFCOMM")
 
