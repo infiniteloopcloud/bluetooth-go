@@ -22,7 +22,6 @@ func Connect(params Params) (Communicator, error) {
 		return &bluetooth{
 			log:            params.Log,
 			FileDescriptor: fd,
-			SocketAddr:     socketAddr,
 			Addr:           params.Address,
 		}, err
 	}
