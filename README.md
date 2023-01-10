@@ -5,18 +5,14 @@ This is a raw bluetooth library which connects to a MAC address by using syscall
 ### Features
 
 - Implements a simple Read/Write interface.
-- Same behavior on Linux and Windows (later Darwin).
+- Same behavior on Linux and Windows.
 - Zero-dependency (expect Go's x/sys)
 - Built-in scanner for devices
-  - Darwin: using the `blueutil`
   - Linux: using the `hcitool`
-  - Windows: not implemented yet
+  - Windows: no dependency (WSALookupService)
 
 ### Roadmap
-
-- Add Windows device scan
 - Rewrite Linux scan not to use `hcitool`
-- Rewrite Darwin scan not to use `blueutil`
 - Add Darwin supports to Communicator
 
 ### Usage
