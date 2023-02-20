@@ -61,7 +61,7 @@ itemsLoop:
 			}
 			devices = append(devices, Device{
 				Name:       windows.UTF16PtrToString(q.ServiceInstanceName),
-				MACAddress: addr,
+				MACAddress: parseRemoteSockaddr(addr),
 			})
 
 		default:
@@ -74,6 +74,7 @@ itemsLoop:
 
 func parseRemoteSockaddr(addr string) string {
 	var spaced = ""
+	addr = strings.ReplaceAll(addr, "-", "")
 	for i, elem := range []byte(addr) {
 		if i%2 == 1 && i < 11 {
 			spaced += string(elem) + " "
