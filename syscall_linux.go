@@ -27,14 +27,6 @@ func writev(fd int, iovs []unix.Iovec) (n int, err error) {
 	return
 }
 
-func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *socklen) (err error) {
-	_, _, e1 := unix.Syscall6(unix.SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
 func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) {
 	_, _, e1 := unix.Syscall6(unix.SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
 	if e1 != 0 {

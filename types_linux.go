@@ -56,5 +56,3 @@ type hciCommandHdr struct {
 	opcode uint16
 	pLen   uint8
 }
-
-type socklen uint32

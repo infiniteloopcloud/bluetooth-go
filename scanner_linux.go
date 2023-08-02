@@ -17,7 +17,8 @@ func NewScanner() Scanner {
 	return scanner{}
 }
 
-func (scanner) Scan() ([]Device, error) {
+// ScanDeprecated is the old and deprecated implementation, I would like to keep it for a while as a fallback
+func (scanner) ScanDeprecated() ([]Device, error) {
 	out, err := exec.Command("hcitool", "scan").Output()
 	if err != nil {
 		return nil, fmt.Errorf("hcitool scan: %s", err.Error())
@@ -42,6 +43,32 @@ func (scanner) Scan() ([]Device, error) {
 	return devices, nil
 }
 
+func (scanner) Scan() ([]Device, error) {
+	resp, err := inquiry()
+	if err != nil {
+		return nil, err
+	}
+
+	fd, err := openDevice()
+	if err != nil {
+		return nil, err
+	}
+
+	var devices []Device
+	for i := 0; i < int(resp.numberOfResponses); i++ {
+		name, err := readRemoteName(fd, resp.response[i])
+		if err != nil {
+			return nil, err
+		}
+		devices = append(devices, Device{
+			Name:       string(name),
+			MACAddress: byteArrayToAddress(resp.response[i].bluetoothDeviceAddress),
+		})
+	}
+
+	return devices, nil
+}
+
 const (
 	ioctlSize = 4
 	typHCI    = 72 // 'H'
@@ -60,10 +87,11 @@ const (
 	solHci       = 0
 	hciFilterOpt = 2
 
-	hciCommandPkt     uint8 = 0x01
-	hciCommandHdrSize       = 3
-	hciMaxEventSize         = 260
-	hciEventHdrSize         = 2
+	hciCommandPkt uint8 = 0x01
+
+	hciCommandHdrSize = 3
+	hciMaxEventSize   = 260
+	hciEventHdrSize   = 2
 )
 
 var (
@@ -229,6 +257,7 @@ func opcodePack(ogf, ocf uint16) uint16 {
 
 func addressCopy(in [6]uint8) [6]uint8 {
 	var out [6]uint8
+	//nolint:gosimple
 	for i := range in {
 		out[i] = in[i]
 	}

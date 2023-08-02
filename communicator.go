@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -40,6 +41,14 @@ func addressToByteArray(addr string) [6]byte {
 		b[len(b)-1-i] = byte(u)
 	}
 	return b
+}
+
+func byteArrayToAddress(addr [6]byte) string {
+	var resultSet []string
+	for i := range addr {
+		resultSet = append(resultSet, strings.ToUpper(hex.EncodeToString([]byte{addr[i]})))
+	}
+	return strings.Join(resultSet, ":")
 }
 
 // addressToUint64 converts MAC address string to uint64
