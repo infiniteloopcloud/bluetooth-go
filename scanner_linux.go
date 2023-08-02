@@ -52,6 +52,11 @@ const (
 	remoteNameRequestSize       = 10
 	eventRemoteNameResponseSize = 255
 
+	evtRemoteNameReqComplete = 0x07
+	evtCmdStatus             = 0x0f
+	evtCmdComplete           = 0x0e
+	evtLeMetaEvent           = 0x3e
+
 	solHci       = 0
 	hciFilterOpt = 2
 
@@ -142,7 +147,43 @@ func readRemoteName(fd int, info inquiryInfo) ([]byte, error) {
 		return nil, fmt.Errorf("readRemoteName: call pollSocket - %s", err.Error())
 	}
 
+	var try = 10
+	for i := 0; i < try; i++ {
+		name, ok, err := readEvent(fd)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return name, nil
+		}
+	}
+
 	return nil, nil
+}
+
+func readEvent(fd int) ([]byte, bool, error) {
+	var buf = make([]byte, hciMaxEventSize)
+	_, err := unix.Read(fd, buf)
+	if err != nil {
+		return nil, false, err
+	}
+
+	hdr := (*hciEventHdr)(unsafe.Pointer(&buf[1]))
+	ptr := 1 + hciEventHdrSize
+
+	switch hdr.event {
+	case evtRemoteNameReqComplete:
+		data := (*remoteNameResponse)(unsafe.Pointer(&buf[ptr]))
+		return normalizeName(data.name), true, nil
+	case evtCmdStatus:
+		return nil, false, nil
+	case evtCmdComplete:
+		return nil, false, nil
+	case evtLeMetaEvent:
+		return nil, false, nil
+	}
+
+	return nil, false, nil
 }
 
 func pollSocket(fd int) error {
@@ -190,6 +231,20 @@ func addressCopy(in [6]uint8) [6]uint8 {
 	var out [6]uint8
 	for i := range in {
 		out[i] = in[i]
+	}
+	return out
+}
+
+func normalizeName(in [248]uint8) []byte {
+	var out []byte
+	for i := range in {
+		if in[i] != 0 {
+			if in[i] < 32 || in[i] == 127 {
+				out = append(out, '.')
+			} else {
+				out = append(out, in[i])
+			}
+		}
 	}
 	return out
 }
