@@ -13,6 +13,33 @@ var _ Scanner = scanner{}
 
 type scanner struct{}
 
+const (
+	ioctlSize = 4
+	typHCI    = 72 // 'H'
+
+	ogfLinkCtl                  = 0x01
+	ocfRemoteNameReq            = 0x0019
+	eventRemoteNameResponse     = 0x07
+	remoteNameRequestSize       = 10
+	eventRemoteNameResponseSize = 255
+
+	evtRemoteNameReqComplete = 0x07
+	evtCmdStatus             = 0x0f
+	evtCmdComplete           = 0x0e
+	evtLeMetaEvent           = 0x3e
+
+	solHci       = 0
+	hciFilterOpt = 2
+
+	hciCommandPkt uint8 = 0x01
+
+	hciCommandHdrSize = 3
+	hciMaxEventSize   = 260
+	hciEventHdrSize   = 2
+)
+
+var hciInquiry = ioR(typHCI, 240, ioctlSize
+
 func NewScanner() Scanner {
 	return scanner{}
 }
@@ -69,35 +96,6 @@ func (scanner) Scan() ([]Device, error) {
 	return devices, nil
 }
 
-const (
-	ioctlSize = 4
-	typHCI    = 72 // 'H'
-
-	ogfLinkCtl                  = 0x01
-	ocfRemoteNameReq            = 0x0019
-	eventRemoteNameResponse     = 0x07
-	remoteNameRequestSize       = 10
-	eventRemoteNameResponseSize = 255
-
-	evtRemoteNameReqComplete = 0x07
-	evtCmdStatus             = 0x0f
-	evtCmdComplete           = 0x0e
-	evtLeMetaEvent           = 0x3e
-
-	solHci       = 0
-	hciFilterOpt = 2
-
-	hciCommandPkt uint8 = 0x01
-
-	hciCommandHdrSize = 3
-	hciMaxEventSize   = 260
-	hciEventHdrSize   = 2
-)
-
-var (
-	hciInquiry = ioR(typHCI, 240, ioctlSize)
-)
-
 func inquiry() (hciInquiryRequest, error) {
 	fd, err := unix.Socket(unix.AF_BLUETOOTH, unix.SOCK_RAW|unix.SOCK_CLOEXEC, unix.BTPROTO_HCI)
 	if err != nil {
@@ -152,6 +150,7 @@ func readRemoteName(fd int, info inquiryInfo) ([]byte, error) {
 	}
 	opcode := opcodePack(hr.ogf, hr.ocf)
 
+	// TODO add better implementation for that filter
 	var filter = hciFilter{
 		typeMask: 16,
 		eventMask: [2]uint32{
