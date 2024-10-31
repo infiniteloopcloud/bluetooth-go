@@ -38,7 +38,7 @@ const (
 	hciEventHdrSize   = 2
 )
 
-var hciInquiry = ioR(typHCI, 240, ioctlSize
+var hciInquiry = ioR(typHCI, 240, ioctlSize)
 
 func NewScanner() Scanner {
 	return scanner{}
